@@ -1,4 +1,4 @@
-package com.hallanmedeiros.solidityunit;
+package solidityunit;
 
 import java.math.BigDecimal;
 

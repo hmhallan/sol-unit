@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutionException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
@@ -22,9 +23,11 @@ import org.web3j.tx.Transfer;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
 
+import solidityunit.runner.SolidityUnitRunner;
 import test.solidityunit.entity.Proposta;
 import test.solidityunit.generated.Democracia;
 
+@RunWith(SolidityUnitRunner.class)
 public class TestDemocracia {
 	
 	Web3j web3j;
@@ -34,7 +37,7 @@ public class TestDemocracia {
 	String MAIN_ACCOUNT;
 	Credentials MAIN_ACCOUNT_CREDENTIAL;
 	
-	String MAIN_ACCOUNT_PRIVATE_KEY = "29af556b884070fd5227dfda5e84a6d5f2addec908c55c5f38343e931d3594d9";
+	String MAIN_ACCOUNT_PRIVATE_KEY = "ee61b7db3aba7a478f459ce9c42d50d4e86b8857bc9f7ce7c931a309489b46b5";
 	
 	
 	@Before
