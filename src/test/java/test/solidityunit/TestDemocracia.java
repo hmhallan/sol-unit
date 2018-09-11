@@ -1,93 +1,97 @@
 package test.solidityunit;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Date;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.web3j.crypto.Credentials;
-import org.web3j.protocol.Web3j;
-import org.web3j.protocol.admin.Admin;
-import org.web3j.protocol.admin.methods.response.PersonalListAccounts;
-import org.web3j.protocol.core.RemoteCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.protocol.exceptions.TransactionException;
-import org.web3j.protocol.http.HttpService;
-import org.web3j.tx.Transfer;
-import org.web3j.tx.gas.DefaultGasProvider;
-import org.web3j.utils.Convert;
 
+import solidityunit.annotations.Contract;
+import solidityunit.annotations.SolidityConfig;
+import solidityunit.constants.Config;
 import solidityunit.runner.SolidityUnitRunner;
 import test.solidityunit.entity.Proposta;
 import test.solidityunit.generated.Democracia;
 
 @RunWith(SolidityUnitRunner.class)
 public class TestDemocracia {
-	
-	Web3j web3j;
-	Admin web3Admin;
-	
-	List<String> ACCOUNTS;
+
+	@SolidityConfig(Config.MAIN_ACCOUNT_ID)
 	String MAIN_ACCOUNT;
-	Credentials MAIN_ACCOUNT_CREDENTIAL;
 	
-	String MAIN_ACCOUNT_PRIVATE_KEY = "ee61b7db3aba7a478f459ce9c42d50d4e86b8857bc9f7ce7c931a309489b46b5";
+	@Contract
+	Democracia democracia;
 	
+	private int TOTAL_PROPOSTAS = 5;
 	
 	@Before
-	public void setUp() throws IOException {
+	public void setUp() throws Exception {
 		
-		web3Admin = Admin.build(new HttpService("http://localhost:7545")); 
-		web3j = Web3j.build(new HttpService("http://localhost:7545"));
+		//cria 5 propostas
+		int total = TOTAL_PROPOSTAS;
 		
-		PersonalListAccounts pla = web3Admin.personalListAccounts().send();
-		ACCOUNTS = pla.getAccountIds();
-		if (ACCOUNTS != null && !ACCOUNTS.isEmpty()) {
-			MAIN_ACCOUNT = ACCOUNTS.get(0);
-			
-			//chave privada da carteira
-			MAIN_ACCOUNT_CREDENTIAL = Credentials.create(MAIN_ACCOUNT_PRIVATE_KEY);
+		for ( int i = 1; i <= total; i++ ) {
+			TransactionReceipt receipt =
+					TestPropostaFactory.criarProposta(this.democracia, 
+													"Proposta de Voto " + i, 
+													"Aqui vai o texto da minha proposta número " + i, 
+													new Date(), 
+													(100 * i) );
+			Assert.assertNotNull( receipt );
 		}
+		
+	}
+	
+	
+	@Test
+	public void verifica_se_o_total_de_propostas_esta_correto() throws Exception  {
+		BigInteger total = this.democracia.getTotaldePropostas().send();
+		Assert.assertEquals(TOTAL_PROPOSTAS, total.intValue() );
 	}
 	
 	@Test
-	public void teste_transfere_1_ether_da_conta_principal() throws IOException, InterruptedException, ExecutionException, TransactionException {
+	public void busca_a_primeira_proposta_cadastrada() throws Exception  {
+		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(0) ).send() );
 		
-		TransactionReceipt transferReceipt = Transfer.sendFunds(web3j, MAIN_ACCOUNT_CREDENTIAL,	ACCOUNTS.get(1), BigDecimal.valueOf(1), Convert.Unit.ETHER)
-														.sendAsync().get();
-		
-		Assert.assertNotNull( transferReceipt.getTransactionHash() );
-	}
-	
-	@Test
-	public void efetua_deploy_do_contrato() throws Exception  {
-		Democracia d = Democracia.deploy(web3j, MAIN_ACCOUNT_CREDENTIAL, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT).send();
-		Assert.assertNotNull( d );
-	}
-	
-	@Test
-	public void cadastra_uma_nova_proposta() throws Exception  {
-		Democracia d = Democracia.deploy(web3j, MAIN_ACCOUNT_CREDENTIAL, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT).send();
-		Assert.assertNotNull( d );
-		
-		long timestamp = new Date().getTime();
-		RemoteCall<TransactionReceipt> call = d.criarProposta("Proposta de Voto", "Aqui vai o texto da minha proposta JAVA", BigInteger.valueOf(timestamp), BigInteger.valueOf(100) );
-		TransactionReceipt receipt = call.send();
-		Assert.assertNotNull( receipt );
-		
-		BigInteger total = d.getTotaldePropostas().send();
-		Assert.assertEquals(1, total.intValue() );
-		
-		Proposta p = new Proposta( d.getProposta( BigInteger.valueOf(0) ).send() );
 		Assert.assertNotNull( p );
-		Assert.assertEquals("Proposta de Voto", p.getTitulo() );
+		Assert.assertEquals("Proposta de Voto 1", p.getTitulo() );
+		Assert.assertEquals("Aqui vai o texto da minha proposta número 1", p.getDescricao() );
+		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(100l, p.getTotalVotos() );
+		Assert.assertEquals(0l, p.getVotosFavor() );
+		Assert.assertEquals(0l, p.getVotosContra());
+		Assert.assertEquals(1, p.getStatus() );
+	}
+	
+	@Test
+	public void busca_a_segunda_proposta_cadastrada() throws Exception  {
+		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(1) ).send() );
 		
-		System.out.println( p );
+		Assert.assertNotNull( p );
+		Assert.assertEquals("Proposta de Voto 2", p.getTitulo() );
+		Assert.assertEquals("Aqui vai o texto da minha proposta número 2", p.getDescricao() );
+		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(200l, p.getTotalVotos() );
+		Assert.assertEquals(0l, p.getVotosFavor() );
+		Assert.assertEquals(0l, p.getVotosContra());
+		Assert.assertEquals(1, p.getStatus() );
+	}
+	
+	@Test
+	public void busca_a_terceira_proposta_cadastrada() throws Exception  {
+		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(2) ).send() );
+		
+		Assert.assertNotNull( p );
+		Assert.assertEquals("Proposta de Voto 3", p.getTitulo() );
+		Assert.assertEquals("Aqui vai o texto da minha proposta número 3", p.getDescricao() );
+		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(300l, p.getTotalVotos() );
+		Assert.assertEquals(0l, p.getVotosFavor() );
+		Assert.assertEquals(0l, p.getVotosContra());
+		Assert.assertEquals(1, p.getStatus() );
 	}
 }

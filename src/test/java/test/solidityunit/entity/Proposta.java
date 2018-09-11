@@ -2,7 +2,7 @@ package test.solidityunit.entity;
 
 import java.math.BigInteger;
 
-import org.web3j.tuples.generated.Tuple8;
+import org.web3j.tuples.generated.Tuple9;
 
 public class Proposta {
 	/**
@@ -32,15 +32,17 @@ public class Proposta {
 		super();
 	}
 	
-	public Proposta(Tuple8<BigInteger, String, String, String, BigInteger, BigInteger, BigInteger, BigInteger> tuple) {
+	public Proposta(Tuple9<BigInteger, String, String, String, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger> tuple) {
 		super();
 		this.index = tuple.getValue1().intValue();
 		this.titulo = tuple.getValue2();
 		this.descricao = tuple.getValue3();
 		this.criador = tuple.getValue4();
 		this.dataFinal = tuple.getValue5().longValue();
-		this.votosFavor = tuple.getValue6().longValue();
-		this.votosContra = tuple.getValue7().longValue();
+		this.totalVotos = tuple.getValue6().longValue();
+		this.votosFavor = tuple.getValue7().longValue();
+		this.votosContra = tuple.getValue8().longValue();
+		this.status = tuple.getValue9().intValue();
 	}
 
 	@Override
