@@ -16,7 +16,7 @@ public class Proposta {
         uint status;
 	 */
 	
-	private int index;
+	private BigInteger index;
 	private String titulo;
 	private String descricao;
 	private String criador;
@@ -34,7 +34,7 @@ public class Proposta {
 	
 	public Proposta(Tuple9<BigInteger, String, String, String, BigInteger, BigInteger, BigInteger, BigInteger, BigInteger> tuple) {
 		super();
-		this.index = tuple.getValue1().intValue();
+		this.index = tuple.getValue1();
 		this.titulo = tuple.getValue2();
 		this.descricao = tuple.getValue3();
 		this.criador = tuple.getValue4();
@@ -87,10 +87,10 @@ public class Proposta {
 	public void setStatus(int status) {
 		this.status = status;
 	}
-	public int getIndex() {
+	public BigInteger getIndex() {
 		return index;
 	}
-	public void setIndex(int index) {
+	public void setIndex(BigInteger index) {
 		this.index = index;
 	}
 	public long getVotosFavor() {

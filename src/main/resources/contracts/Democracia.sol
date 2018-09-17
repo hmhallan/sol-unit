@@ -16,6 +16,11 @@ contract Democracia {
         address[] votosContra;
         uint status;
     }
+    
+    struct Voto {
+    	address eleitor;
+    	bool favor;
+    }
 
     //criar um array de Proposta como atributo do contrato
     Proposta[] public propostas;
@@ -49,6 +54,32 @@ contract Democracia {
             return (index, p.titulo, p.descricao, p.criador, p.visivelAte, p.totalVotos, p.votosFavor.length, p.votosContra.length, p.status);
         }
     }
+
+	function votar( uint index, uint voto ) public {
+		
+		//valida o tipo de voto
+		require(voto == 1 || voto == 2);
+			
+		//busca a proposta
+		Proposta storage p = propostas[index];
+	
+		//valida a data do voto
+		require( now < p.visivelAte );
+		
+		//valida voto duplicado
+		//address votou = p.votosFavor.push[msg.sender] || p.votosContra.push[msg.sender];
+		//require(!votou, "Já votou.");
+		
+		p.totalVotos+= 1;
+		
+		//efetua o voto
+		if (voto == 1) {
+        	p.votosFavor.push(msg.sender);
+        } else {
+        	p.votosContra.push(msg.sender);
+        }
+		
+	}  
 
     function kill() public { //encerra o contrato (somente o owner pode fazer isso)
         if(msg.sender == owner) {
