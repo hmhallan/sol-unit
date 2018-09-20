@@ -1,4 +1,4 @@
-package test.solidityunit;
+package test.solidityunit.factory;
 
 import java.io.IOException;
 import java.math.BigInteger;

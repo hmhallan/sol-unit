@@ -17,6 +17,7 @@ import solidityunit.annotations.SolidityConfig;
 import solidityunit.constants.Config;
 import solidityunit.runner.SolidityUnitRunner;
 import test.solidityunit.entity.Proposta;
+import test.solidityunit.factory.TestDemocraciaFactory;
 import test.solidityunit.generated.Democracia;
 
 @RunWith(SolidityUnitRunner.class)
@@ -47,48 +48,40 @@ public class TestDemocraciaGolden {
 	private static final int PROPOSTA_3 = 2;
 	private static final int PROPOSTA_4 = 3;
 	private static final int PROPOSTA_5 = 4;
-
-	public static boolean GOLDEN = false;
 	
 	@Before
 	public void setUp() throws Exception {
 		
-		if (!GOLDEN) {
+		//seta o contrato da conta principal
+		TestDemocraciaFactory.setMainAddressContract(this.democracia);
 		
-			//seta o contrato da conta principal
-			TestDemocraciaFactory.setMainAddressContract(this.democracia);
-			
-			//cria 5 propostas
-			int total = TOTAL_PROPOSTAS;
-			
-			for ( int i = 1; i <= total; i++ ) {
-				TransactionReceipt receipt =
-						TestDemocraciaFactory.criarProposta("Proposta de Voto " + i, 
-															"Aqui vai o texto da minha proposta número " + i, 
-															new Date(), 
-															(100 * i) );
-				Assert.assertNotNull( receipt );
-			}
-			
-			TestDemocraciaFactory.criarVoto(PROPOSTA_3, VOTO_FAVOR);
-			TestDemocraciaFactory.criarVoto(PROPOSTA_2, VOTO_CONTRA);
-			
-			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_2, VOTO_CONTRA);
-			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_3, VOTO_CONTRA);
-			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_4, VOTO_CONTRA);
-			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_5, VOTO_CONTRA);
-			
-			TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_2, VOTO_FAVOR);
-			
-			//totais
-			//proposta 2: 2 contra, 1 favor
-			//proposta 3: 1 favor, 1 contra
-			//proposta 4: 1 contra
-			//proposta 5: 1 contra
-			
-			GOLDEN = true;
-			TestDemocraciaFactory.setGolden(GOLDEN);
+		//cria 5 propostas
+		int total = TOTAL_PROPOSTAS;
+		
+		for ( int i = 1; i <= total; i++ ) {
+			TransactionReceipt receipt =
+					TestDemocraciaFactory.criarProposta("Proposta de Voto " + i, 
+														"Aqui vai o texto da minha proposta número " + i, 
+														new Date(), 
+														(100 * i) );
+			Assert.assertNotNull( receipt );
 		}
+		
+		TestDemocraciaFactory.criarVoto(PROPOSTA_3, VOTO_FAVOR);
+		TestDemocraciaFactory.criarVoto(PROPOSTA_2, VOTO_CONTRA);
+		
+		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_2, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_3, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_4, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_5, VOTO_CONTRA);
+		
+		TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_2, VOTO_FAVOR);
+		
+		//totais
+		//proposta 2: 2 contra, 1 favor
+		//proposta 3: 1 favor, 1 contra
+		//proposta 4: 1 contra
+		//proposta 5: 1 contra
 	}
 	
 	
@@ -145,6 +138,7 @@ public class TestDemocraciaGolden {
 	}
 	
 	@Test
+	@Safe
 	public void efetua_um_voto_na_primeira_proposta() throws Exception  {
 		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_1) ).send() );
 		Assert.assertNotNull( p );

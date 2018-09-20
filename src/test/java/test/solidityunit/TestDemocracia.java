@@ -16,6 +16,7 @@ import solidityunit.annotations.SolidityConfig;
 import solidityunit.constants.Config;
 import solidityunit.runner.SolidityUnitRunner;
 import test.solidityunit.entity.Proposta;
+import test.solidityunit.factory.TestDemocraciaFactory;
 import test.solidityunit.generated.Democracia;
 
 @RunWith(SolidityUnitRunner.class)

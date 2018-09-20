@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,7 @@ import solidityunit.annotations.Contract;
 import solidityunit.annotations.Safe;
 import solidityunit.annotations.SolidityConfig;
 import solidityunit.constants.Config;
+import solidityunit.internal.sorter.SafeMethodSorter;
 import solidityunit.internal.utilities.PropertiesReader;
 
 public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
@@ -58,23 +61,18 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	//contratos feitos deploy (para reutilizar)
 	Map<Class, String> contractsAddress;
 	
-	//metodos 'safe'
-	List<FrameworkMethod> safeMethods;
+	//controla se o @Before ja rodou ao menos uma vez
+	boolean firstBeforeExecution;
 	
-	//TODO: remover
-	boolean regraOuro;
-
 	public SolidityUnitRunner(Class<?> klass) throws InitializationError {
 		super(klass);
 		
 		try {
+			this.firstBeforeExecution = true;
 			this.accounts = new HashMap<>();
 			this.contractsAddress = new HashMap<>();
 			
 			this.testProperties = new PropertiesReader().loadProperties("solidity-unit.properties");
-			this.regraOuro = Boolean.parseBoolean( this.testProperties.getProperty("regra.ouro") );
-			
-			log.info("REGRA OURO: " + this.regraOuro);
 			
 			//parse das contas no properties
 			for (Object o: this.testProperties.keySet()) {
@@ -169,7 +167,17 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     	
     }
     
-    private void doContractInjections( Object testObject ) throws IllegalArgumentException, IllegalAccessException {
+    /**
+     * Este método faz a injeção dos contratos <br>
+     * 
+     * Caso o metodo seja @Safe, é reutilizado o deploy (load ao inves de deploy)
+     * 
+     * @param testObject
+     * @param actualMethod
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
+    private void doContractInjections( Object testObject, FrameworkMethod actualMethod ) throws IllegalArgumentException, IllegalAccessException {
     	Field [] fields = testObject.getClass().getDeclaredFields();
     	
     	for (Field f: fields) {
@@ -184,8 +192,11 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     				//busca o endereço do contrato
 					String address = this.contractsAddress.get(contractClass);
 					
-    				//se nao for regra ouro OU nao tem endereço (primeiro deploy)
-    				if (!regraOuro || address == null ) {
+    				//se nao for safe OU nao tem endereço (primeiro deploy)
+					Safe safe = actualMethod.getAnnotation(Safe.class);
+					
+					//entra se: for SAFE mas address é null / nao for SAFE
+    				if ((safe != null && address == null || safe == null ) ) {
     					//metodo estático de deploy do contrato
     					Method m = contractClass.getMethod("deploy", Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
 						Object remoteCall = m.invoke(null, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
@@ -234,43 +245,46 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     //
     //***************************************************************
     
-    @Override
-    public Object createTest() throws Exception {
+    public Object createTest(FrameworkMethod method) throws Exception {
         Object obj = super.createTest();
         
         //injeção aqui
         this.doInjections(obj);
-        this.doContractInjections(obj);
+        
+        //passa o metodo (se for safe, reutiliza deploy)
+        this.doContractInjections(obj, method);
         
         return obj;
     }
     
     /**
      * Returns the methods that run tests. Default implementation returns all
-     * methods annotated with {@code @Test} on this class and superclasses that
-     * are not overridden.
+     * methods annotated with {@code @Test} 
      */
     @Override
     protected List<FrameworkMethod> computeTestMethods() {
-    	System.out.println("compute Test Methods");
     	
-    	//guardar metodos com @Safe
-    	this.safeMethods = getTestClass().getAnnotatedMethods(Safe.class);
+    	List<FrameworkMethod> methods = getTestClass().getAnnotatedMethods(Test.class);
     	
-        return getTestClass().getAnnotatedMethods(Test.class);
-        
+    	//troca a lista (pq o junit vem 'unmodifiable list' (WHY MR ANDERSON?)
+    	List<FrameworkMethod> newList = new ArrayList<>();
+    	methods.forEach(newList::add);
+    	
+    	//ordena pela anotação "safe"
+    	Collections.sort(newList, new SafeMethodSorter());
+    	
+    	//na malandragem, ordenou pelos @Safe antes
+        return newList;
     }
     
     @Override
     protected Statement methodBlock(FrameworkMethod method) {
-    	System.out.println("method Block");
-    	
         Object test;
         try {
             test = new ReflectiveCallable() {
                 @Override
                 protected Object runReflectiveCall() throws Throwable {
-                    return createTest();
+                    return createTest( method );
                 }
             }.run();
         } catch (Throwable e) {
@@ -280,7 +294,14 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
         Statement statement = methodInvoker(method, test);
         statement = possiblyExpectingExceptions(method, test, statement);
         statement = withPotentialTimeout(method, test, statement);
-        statement = withBefores(method, test, statement);
+        
+        //somente roda o @Before caso nao tenha @Safe OU se nunca rodou
+        Safe safe = method.getAnnotation(Safe.class);
+        if (safe == null || this.firstBeforeExecution ) {
+        	statement = withBefores(method, test, statement);
+        	this.firstBeforeExecution = false;
+        }
+        		
         statement = withAfters(method, test, statement);
         statement = withRules(method, test, statement);
         return statement;
