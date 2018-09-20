@@ -17,7 +17,7 @@ import solidityunit.constants.Config;
 import solidityunit.internal.utilities.PropertiesReader;
 import test.solidityunit.generated.Democracia;
 
-public class TestPropostaFactory {
+public class TestDemocraciaFactory {
 	
 	//propriedades carregadas do arquivo de properties
 	static Properties testProperties;
@@ -25,31 +25,49 @@ public class TestPropostaFactory {
 	//instancias do web3j
 	static Web3j web3j;
 	static Admin web3Admin;
+	
+	static Democracia democracia;
+	static String democraciaAddress;
 
-	public static TransactionReceipt criarProposta( Democracia democracia, String titulo, String descricao, Date validoAte, int totalVotos ) throws Exception {
+	static boolean GOLDEN;
+	
+	public static void setMainAddressContract( Democracia d ) {
+		democracia = d;
+		democraciaAddress = d.getContractAddress();
+	}
+	
+	public static void setGolden(boolean golden) {
+		GOLDEN = golden;
+	}
+	
+	public static TransactionReceipt criarProposta( String titulo, String descricao, Date validoAte, int totalVotos ) throws Exception {
 		RemoteCall<TransactionReceipt> call = democracia.criarProposta(titulo, descricao, BigInteger.valueOf(validoAte.getTime()), BigInteger.valueOf(totalVotos) );
 		TransactionReceipt receipt = call.send();
 		return receipt;
 	}
 	
-	public static TransactionReceipt criarVoto( Democracia democracia, int indexProposta, BigInteger voto ) throws Exception {
+	public static TransactionReceipt criarVoto( int indexProposta, BigInteger voto ) throws Exception {
 		RemoteCall<TransactionReceipt> call = democracia.votar(BigInteger.valueOf(indexProposta), voto);
 		TransactionReceipt receipt = call.send();
 		return receipt;
 	}
 	
-	public static TransactionReceipt criarVoto( Democracia democracia, String privateKey, int indexProposta, BigInteger voto ) throws Exception {
-		Democracia d = loadFromAddress(democracia, privateKey);
+	public static TransactionReceipt criarVoto( Credentials credentials, int indexProposta, BigInteger voto ) throws Exception {
+		Democracia d = loadFromAddress(credentials);
 		RemoteCall<TransactionReceipt> call = d.votar(BigInteger.valueOf(indexProposta), voto);
 		TransactionReceipt receipt = call.send();
 		return receipt;
 	}
 	
-	public static Democracia loadFromAddress( Democracia d, String privateKey ) {
+	public static Democracia loadFromAddress( String privateKey ) {
 		init();
-		
 		Credentials credentials = Credentials.create(privateKey);
-		return Democracia.load(d.getContractAddress(), web3j, credentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
+		return Democracia.load(democraciaAddress, web3j, credentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
+	}
+	
+	public static Democracia loadFromAddress( Credentials credentials ) {
+		init();
+		return Democracia.load(democraciaAddress, web3j, credentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
 	}
 	
 	private static void init() {

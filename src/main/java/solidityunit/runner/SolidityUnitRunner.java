@@ -1,16 +1,25 @@
 package solidityunit.runner;
 
-import java.util.List;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.inject.Inject;
 
+import org.junit.Test;
+import org.junit.internal.runners.model.ReflectiveCallable;
+import org.junit.internal.runners.statements.Fail;
+import org.junit.rules.RunRules;
+import org.junit.rules.TestRule;
 import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.web3j.crypto.Credentials;
@@ -21,13 +30,12 @@ import org.web3j.protocol.core.RemoteCall;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.gas.DefaultGasProvider;
 
+import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
+import solidityunit.annotations.Safe;
 import solidityunit.annotations.SolidityConfig;
 import solidityunit.constants.Config;
 import solidityunit.internal.utilities.PropertiesReader;
-
-//public class SolidityUnitRunner extends CdiRunner {
-
 
 public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	
@@ -43,12 +51,44 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	
 	//credencial da conta de testes
 	Credentials mainAccountCredentials;
+	
+	//contas cadastradas no properties
+	Map<String,Credentials> accounts;
+	
+	//contratos feitos deploy (para reutilizar)
+	Map<Class, String> contractsAddress;
+	
+	//metodos 'safe'
+	List<FrameworkMethod> safeMethods;
+	
+	//TODO: remover
+	boolean regraOuro;
 
 	public SolidityUnitRunner(Class<?> klass) throws InitializationError {
 		super(klass);
 		
 		try {
+			this.accounts = new HashMap<>();
+			this.contractsAddress = new HashMap<>();
+			
 			this.testProperties = new PropertiesReader().loadProperties("solidity-unit.properties");
+			this.regraOuro = Boolean.parseBoolean( this.testProperties.getProperty("regra.ouro") );
+			
+			log.info("REGRA OURO: " + this.regraOuro);
+			
+			//parse das contas no properties
+			for (Object o: this.testProperties.keySet()) {
+				if ( o.toString().startsWith("account.") && o.toString().endsWith(".id") ) {
+					String [] vet = o.toString().split("\\.");
+					//identificador da conta
+					String identificador = vet[1];
+					
+					String id = this.testProperties.getProperty( String.format("account.%s.id", identificador) );
+					String pk = this.testProperties.getProperty( String.format("account.%s.privatekey", identificador) );
+					
+					accounts.put(identificador, Credentials.create(pk));
+				}
+			}
 			
 		} catch (IOException e) {
 			 throw new InitializationError(new IOException("Erro ao ler arquivo de properties", e));
@@ -56,21 +96,8 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 		
 		this.createWeb3Instance();
 		
-//		System.setProperty("org.jboss.logging.provider", "slf4j");
-//		System.setProperty("org.slf4j.simpleLogger.log.org.jboss.weld", "debug");
 	}
 	
-    @Override
-    public Object createTest() throws Exception {
-        Object obj = super.createTest();
-        
-        //injeção na munheca aqui: fazer com weld DEPOIS
-        this.doInjections(obj);
-        this.doContractInjections(obj);
-        
-        return obj;
-    }
-    
     private void doInjections( Object testObject ) throws IllegalArgumentException, IllegalAccessException {
     	
     	Field [] fields = testObject.getClass().getDeclaredFields();
@@ -124,6 +151,20 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     			}
     			
     		}
+    		
+    		//accounts
+    		if ( f.isAnnotationPresent(Account.class) ) {
+    			f.setAccessible(true);
+    			
+    			Account account = f.getAnnotation(Account.class);
+    			String id = account.id();
+    			
+    			if( f.getType().equals(Credentials.class) ) { 
+    				f.set(testObject, this.accounts.get(id));
+    			}
+    			
+    			
+    		}
     	}
     	
     }
@@ -139,18 +180,39 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     				
     				//tipo de classe do contrato
     				Class contractClass = f.getType();
+    				
+    				//busca o endereço do contrato
+					String address = this.contractsAddress.get(contractClass);
 					
-    				//metodo estático de deploy do contrato
-    				Method m = contractClass.getMethod("deploy", Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
-					Object remoteCall = m.invoke(null, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
-					
-					//chama o metodo send() para criar a instancia do contrato
-					if( remoteCall instanceof RemoteCall ) {
-						Object instance = ((RemoteCall)remoteCall).send();
+    				//se nao for regra ouro OU nao tem endereço (primeiro deploy)
+    				if (!regraOuro || address == null ) {
+    					//metodo estático de deploy do contrato
+    					Method m = contractClass.getMethod("deploy", Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
+						Object remoteCall = m.invoke(null, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
+						
+						//chama o metodo send() para criar a instancia do contrato
+						if( remoteCall instanceof RemoteCall ) {
+							Object instance = ((RemoteCall)remoteCall).send();
+							f.set(testObject, instance);
+							
+							//guarda o endereço do contrato (para possivel reaproveitamento depois)
+							Method mAddr = contractClass.getMethod("getContractAddress");
+							address = (String) mAddr.invoke(instance);
+							this.contractsAddress.put(contractClass, address);
+							
+							log.info( String.format("Deploy do Contrato [%s] efetuado", contractClass.getSimpleName() ) );
+						}
+						
+    				}
+    				else {
+    					//metodo estático de carregar contrato com deploy já efetuado
+    					Method m = contractClass.getMethod("load", String.class, Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
+						Object instance = m.invoke(null, address, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
 						f.set(testObject, instance);
-					}
+						
+						log.info( String.format("Contrato [%s] reaproveitado", contractClass.getSimpleName() ) );
+    				}
 					
-					log.info( String.format("Deploy do Contrato [%s] efetuado", contractClass.getSimpleName() ) );
 					
 				} catch (Exception e) {
 					throw new IllegalArgumentException("Erro ao efetuar deploy do Contrato", e);
@@ -164,5 +226,91 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     	this.web3Admin = Admin.build(new HttpService(this.testProperties.getProperty(Config.WEB3_HOST))); 
     	this.web3j = Web3j.build(new HttpService(this.testProperties.getProperty(Config.WEB3_HOST)));
     	this.mainAccountCredentials = Credentials.create((this.testProperties.getProperty(Config.MAIN_ACCOUNT_PRIVATE_KEY)));
+    }
+    
+    //***************************************************************
+    //
+    //   overrides do junit
+    //
+    //***************************************************************
+    
+    @Override
+    public Object createTest() throws Exception {
+        Object obj = super.createTest();
+        
+        //injeção aqui
+        this.doInjections(obj);
+        this.doContractInjections(obj);
+        
+        return obj;
+    }
+    
+    /**
+     * Returns the methods that run tests. Default implementation returns all
+     * methods annotated with {@code @Test} on this class and superclasses that
+     * are not overridden.
+     */
+    @Override
+    protected List<FrameworkMethod> computeTestMethods() {
+    	System.out.println("compute Test Methods");
+    	
+    	//guardar metodos com @Safe
+    	this.safeMethods = getTestClass().getAnnotatedMethods(Safe.class);
+    	
+        return getTestClass().getAnnotatedMethods(Test.class);
+        
+    }
+    
+    @Override
+    protected Statement methodBlock(FrameworkMethod method) {
+    	System.out.println("method Block");
+    	
+        Object test;
+        try {
+            test = new ReflectiveCallable() {
+                @Override
+                protected Object runReflectiveCall() throws Throwable {
+                    return createTest();
+                }
+            }.run();
+        } catch (Throwable e) {
+            return new Fail(e);
+        }
+
+        Statement statement = methodInvoker(method, test);
+        statement = possiblyExpectingExceptions(method, test, statement);
+        statement = withPotentialTimeout(method, test, statement);
+        statement = withBefores(method, test, statement);
+        statement = withAfters(method, test, statement);
+        statement = withRules(method, test, statement);
+        return statement;
+    }
+    
+    
+    private Statement withRules(FrameworkMethod method, Object target, Statement statement) {
+        List<TestRule> testRules = getTestRules(target);
+        Statement result = statement;
+        result = withMethodRules(method, testRules, target, result);
+        result = withTestRules(method, testRules, result);
+
+        return result;
+    }
+    
+    private Statement withMethodRules(FrameworkMethod method, List<TestRule> testRules, Object target, Statement result) {
+        for (org.junit.rules.MethodRule each : getMethodRules(target)) {
+            if (!testRules.contains(each)) {
+                result = each.apply(result, method, target);
+            }
+        }
+        return result;
+    }
+    
+    private Statement withTestRules(FrameworkMethod method, List<TestRule> testRules, Statement statement) {
+        return testRules.isEmpty() ? statement :
+                new RunRules(statement, testRules, describeChild(method));
+    }
+    
+    private List<org.junit.rules.MethodRule> getMethodRules(Object target) {
+        return rules(target);
     }
 }

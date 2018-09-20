@@ -12,6 +12,7 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
+import solidityunit.annotations.Safe;
 import solidityunit.annotations.SolidityConfig;
 import solidityunit.constants.Config;
 import solidityunit.runner.SolidityUnitRunner;
@@ -19,7 +20,7 @@ import test.solidityunit.entity.Proposta;
 import test.solidityunit.generated.Democracia;
 
 @RunWith(SolidityUnitRunner.class)
-public class TestDemocracia {
+public class TestDemocraciaGolden {
 
 	@SolidityConfig(Config.MAIN_ACCOUNT_ID)
 	String MAIN_ACCOUNT;
@@ -46,50 +47,60 @@ public class TestDemocracia {
 	private static final int PROPOSTA_3 = 2;
 	private static final int PROPOSTA_4 = 3;
 	private static final int PROPOSTA_5 = 4;
+
+	public static boolean GOLDEN = false;
 	
 	@Before
 	public void setUp() throws Exception {
 		
-		//seta o contrato da conta principal
-		TestDemocraciaFactory.setMainAddressContract(this.democracia);
+		if (!GOLDEN) {
 		
-		//cria 5 propostas
-		int total = TOTAL_PROPOSTAS;
-		
-		for ( int i = 1; i <= total; i++ ) {
-			TransactionReceipt receipt =
-					TestDemocraciaFactory.criarProposta("Proposta de Voto " + i, 
-														"Aqui vai o texto da minha proposta número " + i, 
-														new Date(), 
-														(100 * i) );
-			Assert.assertNotNull( receipt );
+			//seta o contrato da conta principal
+			TestDemocraciaFactory.setMainAddressContract(this.democracia);
+			
+			//cria 5 propostas
+			int total = TOTAL_PROPOSTAS;
+			
+			for ( int i = 1; i <= total; i++ ) {
+				TransactionReceipt receipt =
+						TestDemocraciaFactory.criarProposta("Proposta de Voto " + i, 
+															"Aqui vai o texto da minha proposta número " + i, 
+															new Date(), 
+															(100 * i) );
+				Assert.assertNotNull( receipt );
+			}
+			
+			TestDemocraciaFactory.criarVoto(PROPOSTA_3, VOTO_FAVOR);
+			TestDemocraciaFactory.criarVoto(PROPOSTA_2, VOTO_CONTRA);
+			
+			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_2, VOTO_CONTRA);
+			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_3, VOTO_CONTRA);
+			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_4, VOTO_CONTRA);
+			TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_5, VOTO_CONTRA);
+			
+			TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_2, VOTO_FAVOR);
+			
+			//totais
+			//proposta 2: 2 contra, 1 favor
+			//proposta 3: 1 favor, 1 contra
+			//proposta 4: 1 contra
+			//proposta 5: 1 contra
+			
+			GOLDEN = true;
+			TestDemocraciaFactory.setGolden(GOLDEN);
 		}
-		
-		TestDemocraciaFactory.criarVoto(PROPOSTA_3, VOTO_FAVOR);
-		TestDemocraciaFactory.criarVoto(PROPOSTA_2, VOTO_CONTRA);
-		
-		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_2, VOTO_CONTRA);
-		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_3, VOTO_CONTRA);
-		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_4, VOTO_CONTRA);
-		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_5, VOTO_CONTRA);
-		
-		TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_2, VOTO_FAVOR);
-		
-		//totais
-		//proposta 2: 2 contra, 1 favor
-		//proposta 3: 1 favor, 1 contra
-		//proposta 4: 1 contra
-		//proposta 5: 1 contra
 	}
 	
 	
 	@Test
+	@Safe
 	public void verifica_se_o_total_de_propostas_esta_correto() throws Exception  {
 		BigInteger total = this.democracia.getTotaldePropostas().send();
 		Assert.assertEquals(TOTAL_PROPOSTAS, total.intValue() );
 	}
 	
 	@Test
+	@Safe
 	public void busca_a_primeira_proposta_cadastrada() throws Exception  {
 		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_1) ).send() );
 		
@@ -104,6 +115,7 @@ public class TestDemocracia {
 	}
 	
 	@Test
+	@Safe
 	public void busca_a_segunda_proposta_cadastrada() throws Exception  {
 		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_2) ).send() );
 		
@@ -118,6 +130,7 @@ public class TestDemocracia {
 	}
 	
 	@Test
+	@Safe
 	public void busca_a_terceira_proposta_cadastrada() throws Exception  {
 		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_3) ).send() );
 		

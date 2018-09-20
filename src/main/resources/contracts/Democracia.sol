@@ -70,7 +70,7 @@ contract Democracia {
 		//address votou = p.votosFavor.push[msg.sender] || p.votosContra.push[msg.sender];
 		//require(!votou, "Já votou.");
 		
-		p.totalVotos+= 1;
+		//p.totalVotos+= 1;
 		
 		//efetua o voto
 		if (voto == 1) {
