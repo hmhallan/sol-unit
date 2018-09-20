@@ -38,6 +38,9 @@ public class TestDemocraciaGolden {
 	@Account(id="3")
 	Credentials account3;
 	
+	@Account(id="4")
+	Credentials account4;
+	
 	private static final int TOTAL_PROPOSTAS = 5;
 	
 	private static final BigInteger VOTO_FAVOR = new BigInteger("1");
@@ -72,16 +75,26 @@ public class TestDemocraciaGolden {
 		
 		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_2, VOTO_CONTRA);
 		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_3, VOTO_CONTRA);
-		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_4, VOTO_CONTRA);
-		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_5, VOTO_CONTRA);
 		
 		TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_2, VOTO_FAVOR);
+		
+		TestDemocraciaFactory.criarVoto(PROPOSTA_4, VOTO_FAVOR);
+		TestDemocraciaFactory.criarVoto(this.account1, PROPOSTA_4, VOTO_FAVOR);
+		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_4, VOTO_FAVOR);
+		TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_4, VOTO_FAVOR);
+		TestDemocraciaFactory.criarVoto(this.account4, PROPOSTA_4, VOTO_CONTRA);
+		
+		TestDemocraciaFactory.criarVoto(PROPOSTA_5, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account1, PROPOSTA_5, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account2, PROPOSTA_5, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account3, PROPOSTA_5, VOTO_CONTRA);
+		TestDemocraciaFactory.criarVoto(this.account4, PROPOSTA_5, VOTO_FAVOR);
 		
 		//totais
 		//proposta 2: 2 contra, 1 favor
 		//proposta 3: 1 favor, 1 contra
-		//proposta 4: 1 contra
-		//proposta 5: 1 contra
+		//proposta 4: 1 contra, 4 favor
+		//proposta 5: 4 contra, 1 favor
 	}
 	
 	
@@ -174,5 +187,35 @@ public class TestDemocraciaGolden {
 		Proposta fim = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_1) ).send() );
 		Assert.assertEquals(fim.getVotosContra(), 1);
 		Assert.assertEquals(fim.getVotosFavor(), 1);
+	}
+	
+	@Test
+	@Safe
+	public void busca_a_quarta_proposta_cadastrada() throws Exception  {
+		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_4) ).send() );
+		
+		Assert.assertNotNull( p );
+		Assert.assertEquals("Proposta de Voto 4", p.getTitulo() );
+		Assert.assertEquals("Aqui vai o texto da minha proposta número 4", p.getDescricao() );
+		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(400l, p.getTotalVotos() );
+		Assert.assertEquals(4l, p.getVotosFavor() );
+		Assert.assertEquals(1l, p.getVotosContra());
+		Assert.assertEquals(1, p.getStatus() );
+	}
+	
+	@Test
+	@Safe
+	public void busca_a_quinta_proposta_cadastrada() throws Exception  {
+		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_5) ).send() );
+		
+		Assert.assertNotNull( p );
+		Assert.assertEquals("Proposta de Voto 5", p.getTitulo() );
+		Assert.assertEquals("Aqui vai o texto da minha proposta número 5", p.getDescricao() );
+		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(500l, p.getTotalVotos() );
+		Assert.assertEquals(1l, p.getVotosFavor() );
+		Assert.assertEquals(4l, p.getVotosContra());
+		Assert.assertEquals(1, p.getStatus() );
 	}
 }
