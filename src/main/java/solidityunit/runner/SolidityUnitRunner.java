@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
-import org.web3j.protocol.admin.methods.response.PersonalListAccounts;
 import org.web3j.protocol.core.RemoteCall;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.gas.DefaultGasProvider;
@@ -35,7 +34,6 @@ import org.web3j.tx.gas.DefaultGasProvider;
 import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
 import solidityunit.annotations.Safe;
-import solidityunit.annotations.SolidityConfig;
 import solidityunit.constants.Config;
 import solidityunit.internal.sorter.SafeMethodSorter;
 import solidityunit.internal.utilities.PropertiesReader;
@@ -45,217 +43,267 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	/** Logger instance */
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 	
-	//propriedades carregadas do arquivo de properties
+	//properties loaded from file solidity-unit.properties
 	Properties testProperties;
 	
-	//instancias do web3j
+	//web3j and web3admin instances
 	Web3j web3j;
 	Admin web3Admin;
 	
 	//credencial da conta de testes
 	Credentials mainAccountCredentials;
 	
-	//contas cadastradas no properties
+	//accounts from properties file
 	Map<String,Credentials> accounts;
 	
-	//contratos feitos deploy (para reutilizar)
-	Map<Class, String> contractsAddress;
+	//deployed contracts (for a possible reuse)
+	Map<Class<?>, String> contractsAddress;
 	
-	//controla se o @Before ja rodou ao menos uma vez
+	//control variable from @Before, that needs to run once for @Safe methods
 	boolean firstBeforeExecution;
 	
 	public SolidityUnitRunner(Class<?> klass) throws InitializationError {
 		super(klass);
 		
+		this.firstBeforeExecution = true;
+		this.accounts = new HashMap<>();
+		this.contractsAddress = new HashMap<>();
+		
 		try {
-			this.firstBeforeExecution = true;
-			this.accounts = new HashMap<>();
-			this.contractsAddress = new HashMap<>();
-			
+			//loads properties from disk
 			this.testProperties = new PropertiesReader().loadProperties("solidity-unit.properties");
-			
-			//parse das contas no properties
-			for (Object o: this.testProperties.keySet()) {
-				if ( o.toString().startsWith("account.") && o.toString().endsWith(".id") ) {
-					String [] vet = o.toString().split("\\.");
-					//identificador da conta
-					String identificador = vet[1];
-					
-					String id = this.testProperties.getProperty( String.format("account.%s.id", identificador) );
-					String pk = this.testProperties.getProperty( String.format("account.%s.privatekey", identificador) );
-					
-					accounts.put(identificador, Credentials.create(pk));
-				}
-			}
-			
 		} catch (IOException e) {
-			 throw new InitializationError(new IOException("Erro ao ler arquivo de properties", e));
+			 throw new InitializationError(new IOException("Error reading [solidity-unit.properties] file", e));
 		}
 		
-		this.createWeb3Instance();
+		this.readAccountsFromProperties();
 		
+		this.createWeb3InstanceFromProperties();
 	}
 	
+	/**
+     * Creates a test to be excecuted
+     * @param method method annotated with @Test 
+     * @return Object that will be execute the test method
+     * @throws Exception for some error
+     */
+    public Object createTest(FrameworkMethod method) throws Exception {
+    	//stantard creation from JUnit
+        Object obj = super.createTest();
+        
+        //Inject test dependencies on test object
+        this.doInjections(obj);
+        
+        //Inject contracts (if it's @Safe and is not the first run, load, otherwise do a new deploy )
+        this.doContractInjections(obj, method);
+        
+        return obj;
+    }
+	
+    /**
+     * Injects accounts and web3j/web3admin dependencies on the Test Object 
+     * @param testObject object that will be execute the test method
+     * @throws IllegalArgumentException for some error
+     * @throws IllegalAccessException for some error
+     */
     private void doInjections( Object testObject ) throws IllegalArgumentException, IllegalAccessException {
     	
     	Field [] fields = testObject.getClass().getDeclaredFields();
     	
     	for (Field f: fields) {
+    		
+    		//inject web3 and web3admin if needed
     		if ( f.isAnnotationPresent(Inject.class) ) {
-    			f.setAccessible(true);
-    			
-    			//pontos de injecao
-    			if ( f.getType().equals(Web3j.class)  ) {
-    				f.set(testObject, web3j);
-    				log.debug("Injeção de Web3j efetuada");
-    			}
-    			else if ( f.getType().equals(Admin.class)  ) {
-    				f.set(testObject, web3Admin);
-    				log.debug("Injeção de Web3Admin efetuada");
-    			}
+    			this.injectWeb3(f, testObject);
     		}
     		
-    		//configs
-    		if ( f.isAnnotationPresent(SolidityConfig.class) ) {
-    			f.setAccessible(true);
-    			
-    			SolidityConfig config = f.getAnnotation(SolidityConfig.class);
-    			
-    			//dependendo do tipo da config, injeta um objeto diferente
-    			if ( Config.MAIN_ACCOUNT_ID.equals(config.value()) && f.getType().equals(String.class) ) {
-    				f.set( testObject, testProperties.getProperty(Config.MAIN_ACCOUNT_ID) );
-    				log.debug("Injeção de Main Account ID efetuada");
-    			}
-    			else if ( Config.MAIN_ACCOUNT_PRIVATE_KEY.equals(config.value()) && f.getType().equals(String.class) ) {
-    				f.set( testObject, testProperties.getProperty(Config.MAIN_ACCOUNT_PRIVATE_KEY) );
-    				log.debug("Injeção de Main Account Private Key efetuada");
-    			}
-    			
-    			//credentials
-    			else if ( Config.MAIN_ACCOUNT_CREDENTIALS.equals(config.value()) && f.getType().equals(Credentials.class) ) {
-    				f.set( testObject, this.mainAccountCredentials );
-    				log.debug("Injeção de Main Account Credentials efetuada");
-    			}
-    			
-    			//default accounts
-    			else if ( Config.DEFAULT_ACCOUNTS.equals(config.value()) && f.getType().equals(List.class)  ) {
-    				try {
-						PersonalListAccounts pla = web3Admin.personalListAccounts().send();
-						f.set( testObject, pla.getAccountIds() );
-						log.debug("Injeção de Default Accounts efetuada");
-					} catch (IOException e) {
-						throw new IllegalArgumentException("Erro ao injetar DEFAULT ACCOUNTS", e);
-					}
-    			}
-    			
-    		}
-    		
-    		//accounts
+    		//inject accounts if needed
     		if ( f.isAnnotationPresent(Account.class) ) {
-    			f.setAccessible(true);
-    			
-    			Account account = f.getAnnotation(Account.class);
-    			String id = account.id();
-    			
-    			if( f.getType().equals(Credentials.class) ) { 
-    				f.set(testObject, this.accounts.get(id));
-    			}
-    			
-    			
+    			this.injectAccounts(f, testObject);
     		}
     	}
     	
     }
     
     /**
-     * Este método faz a injeção dos contratos <br>
+     * Inject contracts in the Test Object <br>
+     * Contracts are identified by the annotation @Contract
      * 
-     * Caso o metodo seja @Safe, é reutilizado o deploy (load ao inves de deploy)
+     * For @Safe methods, the contract is loaded <br>
+     * Otherwise, it's a new deploy for each test method
      * 
-     * @param testObject
-     * @param actualMethod
-     * @throws IllegalArgumentException
-     * @throws IllegalAccessException
+     * @param testObject object that will be execute the test method
+     * @param actualMethod object representing the actual test method
+     * @throws IllegalArgumentException for some error
+     * @throws IllegalAccessException for some error
      */
     private void doContractInjections( Object testObject, FrameworkMethod actualMethod ) throws IllegalArgumentException, IllegalAccessException {
     	Field [] fields = testObject.getClass().getDeclaredFields();
     	
     	for (Field f: fields) {
     		if ( f.isAnnotationPresent(Contract.class) ) {
-    			f.setAccessible(true);
-    			
-    			try {
-    				
-    				//tipo de classe do contrato
-    				Class contractClass = f.getType();
-    				
-    				//busca o endereço do contrato
-					String address = this.contractsAddress.get(contractClass);
-					
-    				//se nao for safe OU nao tem endereço (primeiro deploy)
-					Safe safe = actualMethod.getAnnotation(Safe.class);
-					
-					//entra se: for SAFE mas address é null / nao for SAFE
-    				if ((safe != null && address == null || safe == null ) ) {
-    					//metodo estático de deploy do contrato
-    					Method m = contractClass.getMethod("deploy", Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
-						Object remoteCall = m.invoke(null, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
-						
-						//chama o metodo send() para criar a instancia do contrato
-						if( remoteCall instanceof RemoteCall ) {
-							Object instance = ((RemoteCall)remoteCall).send();
-							f.set(testObject, instance);
-							
-							//guarda o endereço do contrato (para possivel reaproveitamento depois)
-							Method mAddr = contractClass.getMethod("getContractAddress");
-							address = (String) mAddr.invoke(instance);
-							this.contractsAddress.put(contractClass, address);
-							
-							log.info( String.format("Deploy do Contrato [%s] efetuado", contractClass.getSimpleName() ) );
-						}
-						
-    				}
-    				else {
-    					//metodo estático de carregar contrato com deploy já efetuado
-    					Method m = contractClass.getMethod("load", String.class, Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
-						Object instance = m.invoke(null, address, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
-						f.set(testObject, instance);
-						
-						log.info( String.format("Contrato [%s] reaproveitado", contractClass.getSimpleName() ) );
-    				}
-					
-					
-				} catch (Exception e) {
-					throw new IllegalArgumentException("Erro ao efetuar deploy do Contrato", e);
-				}
+    			this.deployOrLoadContract(f, testObject, actualMethod);
     		}
-    		
     	}
     }
     
-    private void createWeb3Instance() {
+    /**
+     * Method that create instances for Web3j, Web3admin and main account credentials, <br>
+     * based on properties file
+     */
+    private void createWeb3InstanceFromProperties() {
     	this.web3Admin = Admin.build(new HttpService(this.testProperties.getProperty(Config.WEB3_HOST))); 
     	this.web3j = Web3j.build(new HttpService(this.testProperties.getProperty(Config.WEB3_HOST)));
     	this.mainAccountCredentials = Credentials.create((this.testProperties.getProperty(Config.MAIN_ACCOUNT_PRIVATE_KEY)));
     }
     
-    //***************************************************************
-    //
-    //   overrides do junit
-    //
-    //***************************************************************
-    
-    public Object createTest(FrameworkMethod method) throws Exception {
-        Object obj = super.createTest();
-        
-        //injeção aqui
-        this.doInjections(obj);
-        
-        //passa o metodo (se for safe, reutiliza deploy)
-        this.doContractInjections(obj, method);
-        
-        return obj;
+    /**
+     * Reads all accounts listed on solidity-unit.properties file
+     */
+    private void readAccountsFromProperties() {
+		for (Object o: this.testProperties.keySet()) {
+			if ( o.toString().startsWith("account.") && o.toString().endsWith(".id") ) {
+				String [] vet = o.toString().split("\\.");
+				
+				String account = vet[1];
+				//String id = this.testProperties.getProperty( String.format("account.%s.id", account) );
+				String pk = this.testProperties.getProperty( String.format("account.%s.privatekey", account) );
+				accounts.put(account, Credentials.create(pk));
+			}
+		}
     }
+    
+    //***************************************************************
+    //
+    //  injections
+    //
+    //***************************************************************
+    /**
+     * Inject web3j and web3admin objects, if the annotation @Inject is present on them
+     * @param f field on test object (web3j or web3admin)
+     * @param testObject object that will be execute the test method
+     * @throws IllegalArgumentException for some error
+     * @throws IllegalAccessException for some error
+     */ 
+    private void injectWeb3( Field f, Object testObject ) throws IllegalArgumentException, IllegalAccessException {
+		f.setAccessible(true);
+		
+		//injection points
+		if ( f.getType().equals(Web3j.class)  ) {
+			f.set(testObject, web3j);
+			log.debug("Injected Web3j");
+		}
+		else if ( f.getType().equals(Admin.class)  ) {
+			f.set(testObject, web3Admin);
+			log.debug("Injected Web3Admin");
+		}
+    }
+    
+    private void injectAccounts( Field f, Object testObject ) throws IllegalArgumentException, IllegalAccessException {
+			f.setAccessible(true);
+			
+			Account account = f.getAnnotation(Account.class);
+			String id = account.id();
+			
+			if( f.getType().equals(Credentials.class) ) { 
+				f.set(testObject, this.accounts.get(id));
+			}
+    }
+    
+    //***************************************************************
+    //
+    //  contracts
+    //
+    //***************************************************************
+    /**
+     * Inject a contract into a field, deploying a new ou loading an existing
+     * @param f field on the test object that will be injected
+     * @param testObject object that will be execute the test method
+     * @param actualMethod object representing the actual test method
+     */
+    private void deployOrLoadContract( Field f, Object testObject, FrameworkMethod actualMethod) {
+    	f.setAccessible(true);
+		try {
+			Class<?> contractClass = f.getType();
+			String address = this.contractsAddress.get(contractClass);
+			
+			
+			if ( this.needsToDeployNewContract(actualMethod, address) ) {
+				this.deployNewContract(contractClass, testObject, f);
+			}
+			else {
+				this.loadExistingContract(address, contractClass, testObject, f);
+			}
+			
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Errt injecting Contract", e);
+		}
+    }
+    
+    /**
+     * Verify if can reuse a contract or not <br>
+     * If the method is @Safe AND a contract was already deployed, then load. <br>
+     * Otherwise, do a new deploy
+     * @param actualMethod object representing the actual test method 
+     * @param address address for an existing contract (if there is one)
+     * @return true if needs a new deploy, false if can reuse a existing contract
+     */
+    private boolean needsToDeployNewContract(FrameworkMethod actualMethod, String address ) {
+    	Safe safe = actualMethod.getAnnotation(Safe.class);
+    	return (safe != null && address == null || safe == null );
+    }
+    
+    private void deployNewContract(Class contractClass, Object testObject, Field f) throws Exception {
+    	//call the static method 'deploy' that prepares a new contract deploy
+		Method m = contractClass.getMethod("deploy", Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
+		Object remoteCall = m.invoke(null, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
+		
+		//calls the 'send' method to create a contract instance
+		if( remoteCall instanceof RemoteCall ) {
+			Object instance = ((RemoteCall)remoteCall).send();
+			f.set(testObject, instance);
+			
+			//keep the address for a possible future reuse, calling the method 'getContractAddress'
+			Method mAddr = contractClass.getMethod("getContractAddress");
+			String address = (String) mAddr.invoke(instance);
+			this.contractsAddress.put(contractClass, address);
+			
+			log.info( String.format("Contract deployment: [%s]", contractClass.getSimpleName() ) );
+		}
+    }
+    
+    private void loadExistingContract(String address, Class contractClass, Object testObject, Field f) throws Exception {
+    	//calls the static 'load' method that load a contract by it's address
+		Method m = contractClass.getMethod("load", String.class, Web3j.class, Credentials.class, BigInteger.class, BigInteger.class);
+		Object instance = m.invoke(null, address, this.web3j, this.mainAccountCredentials, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT);
+		f.set(testObject, instance);
+		
+		log.info( String.format("Contract loaded: [%s]", contractClass.getSimpleName() ) );
+    }
+    
+    
+    //***************************************************************
+    //
+    //  Fixture rules
+    //
+    //***************************************************************
+    /**
+     * Verify if can reuse a @Before fixture or not <br>
+     * If the method is @Safe AND is NOT a first execution, then can reuse <br>
+     * Otherwise, do a new @Before execution
+     * @param actualMethod object representing the actual test method 
+     * @return true if needs to run @Before, false if can skip 
+     */
+    private boolean needsToRunBeforeFixture(FrameworkMethod actualMethod) {
+    	Safe safe = actualMethod.getAnnotation(Safe.class);
+        return (safe == null || this.firstBeforeExecution );
+    }
+    
+    //***************************************************************
+    //
+    //  JUnit overrides
+    //
+    //***************************************************************
     
     /**
      * Returns the methods that run tests. Default implementation returns all
@@ -266,14 +314,13 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     	
     	List<FrameworkMethod> methods = getTestClass().getAnnotatedMethods(Test.class);
     	
-    	//troca a lista (pq o junit vem 'unmodifiable list' (WHY MR ANDERSON?)
+    	//creates a new List (JUnit default is 'unmodifiable list')
     	List<FrameworkMethod> newList = new ArrayList<>();
     	methods.forEach(newList::add);
     	
-    	//ordena pela anotação "safe"
+    	//Order methods to run "@Safe" first
     	Collections.sort(newList, new SafeMethodSorter());
     	
-    	//na malandragem, ordenou pelos @Safe antes
         return newList;
     }
     
@@ -295,10 +342,10 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
         statement = possiblyExpectingExceptions(method, test, statement);
         statement = withPotentialTimeout(method, test, statement);
         
-        //somente roda o @Before caso nao tenha @Safe OU se nunca rodou
-        Safe safe = method.getAnnotation(Safe.class);
-        if (safe == null || this.firstBeforeExecution ) {
+        //verify the need to run @Before fixture
+        if ( this.needsToRunBeforeFixture(method) ) {
         	statement = withBefores(method, test, statement);
+        	//if run once, check it
         	this.firstBeforeExecution = false;
         }
         		

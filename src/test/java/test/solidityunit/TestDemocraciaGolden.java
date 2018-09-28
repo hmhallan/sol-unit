@@ -13,8 +13,6 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
 import solidityunit.annotations.Safe;
-import solidityunit.annotations.SolidityConfig;
-import solidityunit.constants.Config;
 import solidityunit.runner.SolidityUnitRunner;
 import test.solidityunit.entity.Proposta;
 import test.solidityunit.factory.TestDemocraciaFactory;
@@ -23,11 +21,11 @@ import test.solidityunit.generated.Democracia;
 @RunWith(SolidityUnitRunner.class)
 public class TestDemocraciaGolden {
 
-	@SolidityConfig(Config.MAIN_ACCOUNT_ID)
-	String MAIN_ACCOUNT;
-	
 	@Contract
 	Democracia democracia;
+	
+	@Account(id="main")
+	Credentials mainAccount;
 	
 	@Account(id="1")
 	Credentials account1;
@@ -113,7 +111,7 @@ public class TestDemocraciaGolden {
 		Assert.assertNotNull( p );
 		Assert.assertEquals("Proposta de Voto 1", p.getTitulo() );
 		Assert.assertEquals("Aqui vai o texto da minha proposta número 1", p.getDescricao() );
-		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(mainAccount.getAddress().toLowerCase(), p.getCriador() );
 		Assert.assertEquals(100l, p.getTotalVotos() );
 		Assert.assertEquals(0l, p.getVotosFavor() );
 		Assert.assertEquals(0l, p.getVotosContra());
@@ -128,7 +126,7 @@ public class TestDemocraciaGolden {
 		Assert.assertNotNull( p );
 		Assert.assertEquals("Proposta de Voto 2", p.getTitulo() );
 		Assert.assertEquals("Aqui vai o texto da minha proposta número 2", p.getDescricao() );
-		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(mainAccount.getAddress().toLowerCase(), p.getCriador() );
 		Assert.assertEquals(200l, p.getTotalVotos() );
 		Assert.assertEquals(1l, p.getVotosFavor() );
 		Assert.assertEquals(2l, p.getVotosContra());
@@ -143,7 +141,7 @@ public class TestDemocraciaGolden {
 		Assert.assertNotNull( p );
 		Assert.assertEquals("Proposta de Voto 3", p.getTitulo() );
 		Assert.assertEquals("Aqui vai o texto da minha proposta número 3", p.getDescricao() );
-		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(mainAccount.getAddress().toLowerCase(), p.getCriador() );
 		Assert.assertEquals(300l, p.getTotalVotos() );
 		Assert.assertEquals(1l, p.getVotosFavor() );
 		Assert.assertEquals(1l, p.getVotosContra());
@@ -197,7 +195,7 @@ public class TestDemocraciaGolden {
 		Assert.assertNotNull( p );
 		Assert.assertEquals("Proposta de Voto 4", p.getTitulo() );
 		Assert.assertEquals("Aqui vai o texto da minha proposta número 4", p.getDescricao() );
-		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(mainAccount.getAddress().toLowerCase(), p.getCriador() );
 		Assert.assertEquals(400l, p.getTotalVotos() );
 		Assert.assertEquals(4l, p.getVotosFavor() );
 		Assert.assertEquals(1l, p.getVotosContra());
@@ -212,7 +210,7 @@ public class TestDemocraciaGolden {
 		Assert.assertNotNull( p );
 		Assert.assertEquals("Proposta de Voto 5", p.getTitulo() );
 		Assert.assertEquals("Aqui vai o texto da minha proposta número 5", p.getDescricao() );
-		Assert.assertEquals(MAIN_ACCOUNT.toLowerCase(), p.getCriador() );
+		Assert.assertEquals(mainAccount.getAddress().toLowerCase(), p.getCriador() );
 		Assert.assertEquals(500l, p.getTotalVotos() );
 		Assert.assertEquals(1l, p.getVotosFavor() );
 		Assert.assertEquals(4l, p.getVotosContra());
