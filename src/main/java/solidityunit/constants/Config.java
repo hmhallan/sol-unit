@@ -7,4 +7,5 @@ public interface Config {
 	String MAIN_ACCOUNT_ID = "account.main.id";
 	String MAIN_ACCOUNT_PRIVATE_KEY = "account.main.privatekey";
 	
+	String PROPERTIES_FILE = "solidity-unit.properties";
 }

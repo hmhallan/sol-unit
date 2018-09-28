@@ -29,15 +29,9 @@ public class TestDemocraciaFactory {
 	static Democracia democracia;
 	static String democraciaAddress;
 
-	static boolean GOLDEN;
-	
 	public static void setMainAddressContract( Democracia d ) {
 		democracia = d;
 		democraciaAddress = d.getContractAddress();
-	}
-	
-	public static void setGolden(boolean golden) {
-		GOLDEN = golden;
 	}
 	
 	public static TransactionReceipt criarProposta( String titulo, String descricao, Date validoAte, int totalVotos ) throws Exception {
@@ -73,7 +67,7 @@ public class TestDemocraciaFactory {
 	private static void init() {
 		if (testProperties == null) {
 			try {
-				testProperties = new PropertiesReader().loadProperties("solidity-unit.properties");
+				testProperties = new PropertiesReader().loadProperties(Config.PROPERTIES_FILE);
 				web3Admin = Admin.build(new HttpService(testProperties.getProperty(Config.WEB3_HOST))); 
 		    	web3j = Web3j.build(new HttpService(testProperties.getProperty(Config.WEB3_HOST)));
 		    	
