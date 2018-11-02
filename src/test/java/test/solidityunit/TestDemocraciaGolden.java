@@ -149,7 +149,6 @@ public class TestDemocraciaGolden {
 	}
 	
 	@Test
-	@Safe
 	public void efetua_um_voto_na_primeira_proposta() throws Exception  {
 		Proposta p = new Proposta( this.democracia.getProposta( BigInteger.valueOf(PROPOSTA_1) ).send() );
 		Assert.assertNotNull( p );
