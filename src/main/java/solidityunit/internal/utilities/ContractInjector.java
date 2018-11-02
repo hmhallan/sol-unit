@@ -35,6 +35,9 @@ public class ContractInjector {
 	//deployed contracts (for a possible reuse)
 	Map<Class<?>, String> contractsAddress;
 	
+	//control variable for first non @Safe, that can use the same deploy instance from safe executions
+	boolean firstNonSafeExecuted;
+	
 	public ContractInjector() throws IOException {
 		this.contractsAddress = new HashMap<>();
 		this.createWeb3InstanceFromProperties();
@@ -51,7 +54,8 @@ public class ContractInjector {
      * @param testObject object that will be execute the test method
      * @param actualMethod object representing the actual test method
      */
-    public void deployOrLoadContract( Field f, Object testObject, FrameworkMethod actualMethod) {
+    public void deployOrLoadContract( Field f, Object testObject, FrameworkMethod actualMethod, boolean firstNonSafeExecuted) {
+    	this.firstNonSafeExecuted = firstNonSafeExecuted;
     	f.setAccessible(true);
 		try {
 			Class<?> contractClass = f.getType();
@@ -79,8 +83,24 @@ public class ContractInjector {
      * @return true if needs a new deploy, false if can reuse a existing contract
      */
     private boolean needsToDeployNewContract(FrameworkMethod actualMethod, String address ) {
+    	if ( isSafeAndNoDeployHasBeenMade(actualMethod, address) ) {
+    		return true;
+    	}
+    	
+    	if ( isFistNotSafeExecution(actualMethod) ) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    private boolean isSafeAndNoDeployHasBeenMade(FrameworkMethod actualMethod, String address) {
     	Safe safe = actualMethod.getAnnotation(Safe.class);
-    	return (safe != null && address == null || safe == null );
+    	return (safe != null && address == null );
+    }
+    
+    private boolean isFistNotSafeExecution(FrameworkMethod actualMethod) {
+    	Safe safe = actualMethod.getAnnotation(Safe.class);
+    	return (safe == null && this.firstNonSafeExecuted );
     }
     
     private void deployNewContract(Class contractClass, Object testObject, Field f) throws Exception {

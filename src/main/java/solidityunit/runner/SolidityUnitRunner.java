@@ -31,6 +31,9 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	//control variable from @Before, that needs to run once for @Safe methods
 	boolean firstBeforeExecution;
 	
+	//control variable for first non @Safe, that can use the same deploy instance from safe executions
+	boolean firstNonSafeExecuted;
+	
 	//controls a contract deploy or load
 	ContractInjector contractInjector;
 	
@@ -41,6 +44,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 		super(klass);
 		
 		this.firstBeforeExecution = true;
+		this.firstNonSafeExecuted = false;
 		
 		try {
 			this.contractInjector = new ContractInjector();
@@ -87,7 +91,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     		}
     		
     		if ( f.isAnnotationPresent(Contract.class) ) {
-    			this.contractInjector.deployOrLoadContract(f, testObject, actualMethod);
+    			this.contractInjector.deployOrLoadContract(f, testObject, actualMethod, this.firstNonSafeExecuted);
     		}
     		
     	}
@@ -106,8 +110,26 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
      * @return true if needs to run @Before, false if can skip 
      */
     private boolean needsToRunBeforeFixture(FrameworkMethod actualMethod) {
+    	//regra 1: roda se for safe, mas nao rodou before nenhuma vez
+    	if (isSafeAndNotFirstBeforeExecution(actualMethod)) {
+    		return true;
+    	}
+    	
+    	//regra 2: nao é safe E nao é primeira execução de nao-safe
+    	if (isFistNotSafeExecution(actualMethod)) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    private boolean isSafeAndNotFirstBeforeExecution(FrameworkMethod actualMethod) {
     	Safe safe = actualMethod.getAnnotation(Safe.class);
-        return (safe == null || this.firstBeforeExecution );
+    	return (safe != null && this.firstBeforeExecution );
+    }
+    
+    private boolean isFistNotSafeExecution(FrameworkMethod actualMethod) {
+    	Safe safe = actualMethod.getAnnotation(Safe.class);
+    	return (safe == null && this.firstNonSafeExecuted );
     }
     
     //***************************************************************
@@ -157,6 +179,13 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
         	statement = withBefores(method, test, statement);
         	//if run once, check it
         	this.firstBeforeExecution = false;
+        }
+        
+       
+        
+        //mark first non safe execution when happens
+        if ( method.getAnnotation(Safe.class) == null ) {
+        	this.firstNonSafeExecuted = true;
         }
         		
         statement = withAfters(method, test, statement);
