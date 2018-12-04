@@ -18,9 +18,10 @@ import org.slf4j.LoggerFactory;
 
 import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
-import solidityunit.annotations.Safe;
 import solidityunit.internal.sorter.SafeMethodSorter;
 import solidityunit.internal.utilities.ContractInjector;
+import solidityunit.parser.SafeAnnotationParser;
+import solidityunit.parser.SafeParser;
 import solidityunit.internal.utilities.AccountsInjector;
 
 public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
@@ -40,6 +41,9 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	//controls accounts that can be injected
 	AccountsInjector accountsInjector;
 	
+	//parser that knows if a method is Safe
+	SafeParser safeParser;
+	
 	public SolidityUnitRunner(Class<?> klass) throws InitializationError {
 		super(klass);
 		
@@ -49,6 +53,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 		try {
 			this.contractInjector = new ContractInjector();
 			this.accountsInjector = new AccountsInjector();
+			this.safeParser = new SafeAnnotationParser();
 			
 		} catch (IOException e) {
 			 throw new InitializationError(new IOException("Error initializing injectors", e));
@@ -119,17 +124,21 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     	if (isFistNotSafeExecution(actualMethod)) {
     		return true;
     	}
+    	
+    	//regra 3: se o before nunca foi executado (classe sem nenhum safe), executa
+    	if ( this.firstBeforeExecution ) {
+    		return true;
+    	}
+    	
     	return false;
     }
     
     private boolean isSafeAndNotFirstBeforeExecution(FrameworkMethod actualMethod) {
-    	Safe safe = actualMethod.getAnnotation(Safe.class);
-    	return (safe != null && this.firstBeforeExecution );
+    	return (this.safeParser.isSafe(actualMethod) && this.firstBeforeExecution );
     }
     
     private boolean isFistNotSafeExecution(FrameworkMethod actualMethod) {
-    	Safe safe = actualMethod.getAnnotation(Safe.class);
-    	return (safe == null && this.firstNonSafeExecuted );
+    	return (!this.safeParser.isSafe(actualMethod) && this.firstNonSafeExecuted );
     }
     
     //***************************************************************
@@ -184,7 +193,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
        
         
         //mark first non safe execution when happens
-        if ( method.getAnnotation(Safe.class) == null ) {
+        if ( !this.safeParser.isSafe(method) ) {
         	this.firstNonSafeExecuted = true;
         }
         		

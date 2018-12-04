@@ -90,6 +90,12 @@ public class ContractInjector {
     	if ( isFistNotSafeExecution(actualMethod) ) {
     		return true;
     	}
+    	
+    	//verifica se ja teve algum deploy deste contrato
+    	if ( !this.contractsAddress.containsValue(address) ) {
+    		return true;
+    	}
+    	
     	return false;
     }
     
