@@ -4,21 +4,29 @@ import java.util.Comparator;
 
 import org.junit.runners.model.FrameworkMethod;
 
-import solidityunit.annotations.Safe;
+import solidityunit.parser.SafeParser;
+import solidityunit.parser.annotation.SafeAnnotationParser;
 
 public class SafeMethodSorter implements Comparator<FrameworkMethod> {
 	
+	SafeParser parser;
+	
+	public SafeMethodSorter() {
+		this.parser = new SafeAnnotationParser();
+	}
+	
     public int compare(FrameworkMethod m1, FrameworkMethod m2) {
     	
-    	Safe i1Safe = m1.getAnnotation(Safe.class);
-    	Safe i2Safe = m2.getAnnotation(Safe.class);
-        if (i1Safe != null && i2Safe == null) {
+    	boolean i1Safe = parser.isSafe(m1);
+    	boolean i2Safe = parser.isSafe(m2);
+        if (i1Safe && !i2Safe) {
             return -1;
         }
-        else if (i1Safe == null && i2Safe != null) {
+        else if (!i1Safe && i2Safe) {
             return 1;
         }
         return 0;
+    	
     }
     
 }
