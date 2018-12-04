@@ -1,8 +1,9 @@
-package solidityunit.parser;
+package solidityunit.parser.annotation;
 
 import org.junit.runners.model.FrameworkMethod;
 
 import solidityunit.annotations.Safe;
+import solidityunit.parser.SafeParser;
 
 public class SafeAnnotationParser implements SafeParser {
 	

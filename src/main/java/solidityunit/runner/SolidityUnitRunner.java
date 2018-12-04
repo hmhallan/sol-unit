@@ -20,8 +20,8 @@ import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
 import solidityunit.internal.sorter.SafeMethodSorter;
 import solidityunit.internal.utilities.ContractInjector;
-import solidityunit.parser.SafeAnnotationParser;
 import solidityunit.parser.SafeParser;
+import solidityunit.parser.annotation.SafeAnnotationParser;
 import solidityunit.internal.utilities.AccountsInjector;
 
 public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
