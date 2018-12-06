@@ -18,8 +18,9 @@ import org.web3j.protocol.core.RemoteCall;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.gas.DefaultGasProvider;
 
-import solidityunit.annotations.Safe;
 import solidityunit.constants.Config;
+import solidityunit.parser.SafeParser;
+import solidityunit.parser.SafeParserFactory;
 
 public class ContractInjector {
 	
@@ -38,9 +39,14 @@ public class ContractInjector {
 	//control variable for first non @Safe, that can use the same deploy instance from safe executions
 	boolean firstNonSafeExecuted;
 	
+	private SafeParser safeParser;
+	
 	public ContractInjector() throws IOException {
 		this.contractsAddress = new HashMap<>();
 		this.createWeb3InstanceFromProperties();
+		
+		//cria o parser
+		this.safeParser = SafeParserFactory.createParser();
 	}
 	
 	//***************************************************************
@@ -100,13 +106,11 @@ public class ContractInjector {
     }
     
     private boolean isSafeAndNoDeployHasBeenMade(FrameworkMethod actualMethod, String address) {
-    	Safe safe = actualMethod.getAnnotation(Safe.class);
-    	return (safe != null && address == null );
+    	return (this.safeParser.isSafe(actualMethod) && address == null );
     }
     
     private boolean isFistNotSafeExecution(FrameworkMethod actualMethod) {
-    	Safe safe = actualMethod.getAnnotation(Safe.class);
-    	return (safe == null && this.firstNonSafeExecuted );
+    	return (!this.safeParser.isSafe(actualMethod) && this.firstNonSafeExecuted );
     }
     
     private void deployNewContract(Class contractClass, Object testObject, Field f) throws Exception {

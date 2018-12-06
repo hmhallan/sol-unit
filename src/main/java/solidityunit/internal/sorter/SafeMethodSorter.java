@@ -5,14 +5,14 @@ import java.util.Comparator;
 import org.junit.runners.model.FrameworkMethod;
 
 import solidityunit.parser.SafeParser;
-import solidityunit.parser.annotation.SafeAnnotationParser;
+import solidityunit.parser.SafeParserFactory;
 
 public class SafeMethodSorter implements Comparator<FrameworkMethod> {
 	
 	SafeParser parser;
 	
 	public SafeMethodSorter() {
-		this.parser = new SafeAnnotationParser();
+		this.parser = SafeParserFactory.createParser();
 	}
 	
     public int compare(FrameworkMethod m1, FrameworkMethod m2) {

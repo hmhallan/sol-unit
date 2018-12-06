@@ -19,10 +19,10 @@ import org.slf4j.LoggerFactory;
 import solidityunit.annotations.Account;
 import solidityunit.annotations.Contract;
 import solidityunit.internal.sorter.SafeMethodSorter;
+import solidityunit.internal.utilities.AccountsInjector;
 import solidityunit.internal.utilities.ContractInjector;
 import solidityunit.parser.SafeParser;
-import solidityunit.parser.annotation.SafeAnnotationParser;
-import solidityunit.internal.utilities.AccountsInjector;
+import solidityunit.parser.SafeParserFactory;
 
 public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	
@@ -53,7 +53,9 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 		try {
 			this.contractInjector = new ContractInjector();
 			this.accountsInjector = new AccountsInjector();
-			this.safeParser = new SafeAnnotationParser();
+			
+			//cria o parser
+			this.safeParser = SafeParserFactory.createParser();
 			
 		} catch (IOException e) {
 			 throw new InitializationError(new IOException("Error initializing injectors", e));
