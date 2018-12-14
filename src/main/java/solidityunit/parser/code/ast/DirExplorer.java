@@ -1,12 +1,15 @@
-package solidityunit.parser.code.internal;
+package solidityunit.parser.code.ast;
 
 import java.io.File;
 
 public class DirExplorer {
+	
+	@FunctionalInterface
     public interface FileHandler {
         void handle(int level, String path, File file);
     }
  
+	@FunctionalInterface
     public interface Filter {
         boolean interested(int level, String path, File file);
     }

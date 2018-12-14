@@ -1,4 +1,4 @@
-package solidityunit.parser.code.internal.ast;
+package solidityunit.parser.code.ast;
 
 import java.util.List;
 

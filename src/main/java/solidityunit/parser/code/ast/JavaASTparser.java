@@ -1,22 +1,23 @@
-package solidityunit.parser.code.internal;
+package solidityunit.parser.code.ast;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.runners.model.FrameworkMethod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.SourceRoot;
 
-import solidityunit.parser.code.internal.ast.ContractClassFinder;
-import solidityunit.parser.code.internal.ast.ContractSafeMethodFinder;
-import solidityunit.parser.code.internal.ast.TestRunnerClassFinder;
-import solidityunit.parser.code.internal.ast.TestRunnerSafeMethodFinder;
-
 public class JavaASTparser {
+	
+	/** Logger instance */
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	String sourceRootDir;
 	SourceRoot sourceRoot;
@@ -27,12 +28,8 @@ public class JavaASTparser {
 	List<MethodDeclaration> contractSafeMethods;
 	List<MethodDeclaration> testSafeMethods;
 
-	public static void main(String [] args) {
-		JavaASTparser parser = new JavaASTparser();
-	}
-
-	public JavaASTparser() {
-		this.sourceRootDir = "src/test/java";
+	public JavaASTparser( String sourceDir ) {
+		this.sourceRootDir = sourceDir;
 		this.testClasses = new ArrayList<>();
 		this.contractClasses = new ArrayList<>();
 		this.contractSafeMethods = new ArrayList<>();
@@ -40,10 +37,25 @@ public class JavaASTparser {
 		
 		this.init();
 	}
+	
+	public boolean isSafe(FrameworkMethod method) {
+		
+		//find method
+		for (MethodDeclaration m: this.testSafeMethods) {
+			if ( m.getName().asString().equals(method.getName()) ) {
+				//find class
+				if ( this.getClassFromTestMethodAsString(m).equals(method.getDeclaringClass().getSimpleName()) ) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
 
-	public void init() {
+	private void init() {
 
-		System.out.println( String.format("[%s] initializing", this.getClass().getName()) );
+		log.info( "Initializing" );
 		
 		//find all contracts
 		this.findContractClasses();
@@ -99,13 +111,13 @@ public class JavaASTparser {
 	}
 	
 	private void printContractResults() {
-		this.contractSafeMethods.stream().forEach( m -> System.out.println( String.format("Safe method found: [%s].[%s]", 
+		this.contractSafeMethods.stream().forEach( m -> log.info( String.format("Safe method found: [%s].[%s]", 
 																			this.getClassFromContractMethodAsString(m),
 																			m.getName()) ) );
 	}
 	
 	private void printTestClassResults() {
-		this.testSafeMethods.stream().forEach( m -> System.out.println( String.format("Safe method found: [%s].[%s]", 
+		this.testSafeMethods.stream().forEach( m -> log.info( String.format("Safe method found: [%s].[%s]", 
 																			this.getClassFromTestMethodAsString(m),
 																			m.getName()) ) );
 	}
