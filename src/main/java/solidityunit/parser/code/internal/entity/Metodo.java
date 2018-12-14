@@ -13,6 +13,8 @@ public class Metodo {
 	private String nome;
 	private String tipoRetorno;
 	private List<Atributo> argumentos;
+	
+	private boolean isSafe;
  
 	public Metodo() {
 		this.argumentos = new ArrayList<Atributo>();
@@ -69,6 +71,14 @@ public class Metodo {
  
 	public void addArgumento(Atributo attr) {
 		this.argumentos.add(attr);
+	}
+
+	public boolean isSafe() {
+		return isSafe;
+	}
+
+	public void setSafe(boolean isSafe) {
+		this.isSafe = isSafe;
 	}
  
 }

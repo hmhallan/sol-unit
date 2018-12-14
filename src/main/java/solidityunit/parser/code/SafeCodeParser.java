@@ -16,7 +16,9 @@ import solidityunit.constants.Config;
 import solidityunit.internal.utilities.PropertiesReader;
 import solidityunit.parser.SafeParser;
 import solidityunit.parser.code.internal.JavaCodeReader;
+import solidityunit.parser.code.internal.SolidityCodeReader;
 import solidityunit.parser.code.internal.entity.Classe;
+import solidityunit.parser.code.internal.entity.Metodo;
 
 public class SafeCodeParser implements SafeParser {
 
@@ -24,6 +26,8 @@ public class SafeCodeParser implements SafeParser {
 
 	private List<File> javaFiles;
 	private List<File> solidityFiles;
+	
+	private List<Classe> classes;
 
 	public SafeCodeParser() {
 		try {
@@ -64,12 +68,15 @@ public class SafeCodeParser implements SafeParser {
 
 	private void findSafeMethodsOnContracts() throws IOException {
 		for ( File f: this.solidityFiles ) {
-			String s = this.readFile(f.getAbsolutePath());
-			//System.out.println( s );
+			String code = this.readFile(f.getAbsolutePath());
+			SolidityCodeReader reader = new SolidityCodeReader(code);
 			
 			//TODO: criar o parser
 			//listar os metodos "safe"
-			
+			List<Metodo> metodos = reader.getMetodosSafe();
+			for ( Metodo m: metodos ) {
+				System.out.println( f.getName() + " -> " + m.getNome() );
+			}
 		}
 	}
 	
@@ -77,9 +84,12 @@ public class SafeCodeParser implements SafeParser {
 		for ( File f: this.javaFiles ) {
 			String s = this.readFile(f.getAbsolutePath());
 			JavaCodeReader reader = new JavaCodeReader(s);
-			System.out.println( f.getName() + " -> " + reader.isSolidityUnitRunner() );
 			
 			if ( reader.isSolidityUnitRunner() ) {
+				List<Metodo> metodos = reader.getMetodos();
+				for ( Metodo m: metodos ) {
+//					System.out.println( f.getName() + " -> " + m.getNome() );
+				}
 				//TODO: listar os metodos (e seu conteudo) para poder ver se chama algo "nao safe"
 				//		basta ver se o que chama está na lista dos "safe" ou nao
 			}

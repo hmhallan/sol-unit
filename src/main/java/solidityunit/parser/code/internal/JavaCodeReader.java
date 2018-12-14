@@ -289,7 +289,6 @@ public class JavaCodeReader {
 		while (matcher.find()) {
 			String nome = matcher.group();
 			nome = nome.replace("package", "").replace(";", "");
-			// System.out.println( nome );
 			return nome.trim();
 		}
 		return null;
