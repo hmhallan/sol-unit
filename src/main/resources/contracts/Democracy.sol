@@ -25,7 +25,7 @@ contract Democracy {
 
     function createProposal(string title, string description, uint expirationDate, uint neededVotes) public {
         
-        Proposta memory p;
+        Proposal memory p;
         p.title = title;
         p.description = description;
         p.expirationDate = expirationDate;
@@ -43,18 +43,18 @@ contract Democracy {
     
     function getProposal( uint index ) public view returns (uint, string, string, address, uint, uint, uint, uint, uint) {
         if ( proposals.length >= index ) {
-            Proposta storage p = proposals[index];
+            Proposal storage p = proposals[index];
             return (index, p.title, p.description, p.creator, p.expirationDate, p.neededVotes, p.votesFavor.length, p.votesAgainst.length, p.status);
         }
     }
 
-	function votar( uint index, uint vote ) public {
+	function voteOnProposal( uint index, uint vote ) public {
 		
 		//valida o tipo de voto
 		require(vote == 1 || vote == 2);
 			
 		//busca a proposta
-		Proposta storage p = proposals[index];
+		Proposal storage p = proposals[index];
 	
 		//valida a data do voto
 		require( now < p.expirationDate );
