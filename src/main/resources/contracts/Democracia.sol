@@ -1,70 +1,63 @@
 pragma solidity ^0.4.16;
 
-contract Democracia {
+contract Democracy {
 
-    address owner = msg.sender; //dono do contrato é o criador 
+    address owner = msg.sender;
     
-
-    //struct da Proposta
-    struct Proposta {
-        string titulo;
-        string descricao;
-        address criador;
-        uint visivelAte;
-        uint totalVotos;
-        address[] votosFavor;
-        address[] votosContra;
+    struct Proposal {
+        string title;
+        string description;
+        address creator;
+        uint expirationDate;
+        uint neededVotes;
+        address[] votesFavor;
+        address[] votesAgainst;
         uint status;
     }
     
-    struct Voto {
-    	address eleitor;
+    struct Vote {
+    	address voter;
     	bool favor;
     }
 
-    //criar um array de Proposta como atributo do contrato
-    Proposta[] public propostas;
+    Proposal[] public proposals;
 
 
-    function criarProposta(string titulo, string descricao, uint visivelAte, uint totalVotos) public {
+    function createProposal(string title, string description, uint expirationDate, uint neededVotes) public {
         
         Proposta memory p;
-        p.titulo = titulo;
-        p.descricao = descricao;
-        p.visivelAte = visivelAte;
-        p.totalVotos = totalVotos;
-        p.criador = msg.sender;
+        p.title = title;
+        p.description = description;
+        p.expirationDate = expirationDate;
+        p.neededVotes = neededVotes;
+        p.creator = msg.sender;
         p.status = 1;
 
-        //adiciona ao array de propostas
-        propostas.push(p);
+        proposals.push(p);
 
     }
 
-    function getTotaldePropostas() public view returns (uint) {
-        if (propostas.length > 0) {
-            return propostas.length;
-        }
-        return 0;
+    function getProposalsLength() public view returns (uint) {
+        return proposals.length;
     }
     
-    function getProposta( uint index ) public view returns (uint, string, string, address, uint, uint, uint, uint, uint) {
-        if ( propostas.length >= index ) {
-            Proposta storage p = propostas[index];
-            return (index, p.titulo, p.descricao, p.criador, p.visivelAte, p.totalVotos, p.votosFavor.length, p.votosContra.length, p.status);
+    function getProposal( uint index ) public view returns (uint, string, string, address, uint, uint, uint, uint, uint) {
+        if ( proposals.length >= index ) {
+            Proposta storage p = proposals[index];
+            return (index, p.title, p.description, p.creator, p.expirationDate, p.neededVotes, p.votesFavor.length, p.votesAgainst.length, p.status);
         }
     }
 
-	function votar( uint index, uint voto ) public {
+	function votar( uint index, uint vote ) public {
 		
 		//valida o tipo de voto
-		require(voto == 1 || voto == 2);
+		require(vote == 1 || vote == 2);
 			
 		//busca a proposta
-		Proposta storage p = propostas[index];
+		Proposta storage p = proposals[index];
 	
 		//valida a data do voto
-		require( now < p.visivelAte );
+		require( now < p.expirationDate );
 		
 		//valida voto duplicado
 		//address votou = p.votosFavor.push[msg.sender] || p.votosContra.push[msg.sender];
@@ -73,10 +66,10 @@ contract Democracia {
 		//p.totalVotos+= 1;
 		
 		//efetua o voto
-		if (voto == 1) {
-        	p.votosFavor.push(msg.sender);
+		if (vote == 1) {
+        	p.votesFavor.push(msg.sender);
         } else {
-        	p.votosContra.push(msg.sender);
+        	p.votesAgainst.push(msg.sender);
         }
 		
 	}  
