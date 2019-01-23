@@ -100,7 +100,7 @@ class FieldAccessFinder extends VoidVisitorAdapter<Void> {
         //send methods must be ignored
         if ( contractAccess ) {
         	md.findAll(MethodCallExpr.class).stream().forEach( a -> {
-        		if( a.getScope().get().containsWithin(field) ) {
+        		if( a.getScope().isPresent() && a.getScope().get().containsWithin(field) ) {
         			if ( !a.getName().asString().equals("send") ) {
         				
         				//search if there is a method safe with the same name

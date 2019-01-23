@@ -111,13 +111,13 @@ public class JavaASTparser {
 	}
 	
 	private void printContractResults() {
-		this.contractSafeMethods.stream().forEach( m -> log.info( String.format("Safe method found: [%s].[%s]", 
+		this.contractSafeMethods.stream().forEach( m -> log.info( String.format("View function found: [%s].[%s]", 
 																			this.getClassFromContractMethodAsString(m),
 																			m.getName()) ) );
 	}
 	
 	private void printTestClassResults() {
-		this.testSafeMethods.stream().forEach( m -> log.info( String.format("Safe method found: [%s].[%s]", 
+		this.testSafeMethods.stream().forEach( m -> log.info( String.format("Safe test found: [%s].[%s]", 
 																			this.getClassFromTestMethodAsString(m),
 																			m.getName()) ) );
 	}
