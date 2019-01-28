@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import javax.inject.Inject;
+
 import org.junit.Test;
 import org.junit.internal.runners.model.ReflectiveCallable;
 import org.junit.internal.runners.statements.Fail;
@@ -21,6 +23,7 @@ import solidityunit.annotations.Contract;
 import solidityunit.internal.sorter.SafeMethodSorter;
 import solidityunit.internal.utilities.AccountsInjector;
 import solidityunit.internal.utilities.ContractInjector;
+import solidityunit.internal.utilities.Web3jInjector;
 import solidityunit.parser.SafeParser;
 import solidityunit.parser.SafeParserFactory;
 
@@ -41,6 +44,8 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 	//controls accounts that can be injected
 	AccountsInjector accountsInjector;
 	
+	Web3jInjector web3jInjector;
+	
 	//parser that knows if a method is Safe
 	SafeParser safeParser;
 	
@@ -53,6 +58,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
 		try {
 			this.contractInjector = new ContractInjector();
 			this.accountsInjector = new AccountsInjector();
+			this.web3jInjector = new Web3jInjector();
 			
 			//cria o parser
 			this.safeParser = SafeParserFactory.createParser();
@@ -99,6 +105,10 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     		
     		if ( f.isAnnotationPresent(Contract.class) ) {
     			this.contractInjector.deployOrLoadContract(f, testObject, actualMethod, this.firstNonSafeExecuted);
+    		}
+    		
+    		if ( f.isAnnotationPresent(Inject.class) ) {
+    			this.web3jInjector.inject(f, testObject);
     		}
     		
     	}
