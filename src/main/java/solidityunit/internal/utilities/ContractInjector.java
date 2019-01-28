@@ -92,13 +92,10 @@ public class ContractInjector {
     	if ( isSafeAndNoDeployHasBeenMade(actualMethod, address) ) {
     		return true;
     	}
-    	
-    	if ( isFistNotSafeExecution(actualMethod) ) {
+    	if ( fistNonSafeWasExecuted(actualMethod) ) {
     		return true;
     	}
-    	
-    	//verifica se ja teve algum deploy deste contrato
-    	if ( !this.contractsAddress.containsValue(address) ) {
+    	if ( address == null ) {
     		return true;
     	}
     	
@@ -109,7 +106,7 @@ public class ContractInjector {
     	return (this.safeParser.isSafe(actualMethod) && address == null );
     }
     
-    private boolean isFistNotSafeExecution(FrameworkMethod actualMethod) {
+    private boolean fistNonSafeWasExecuted(FrameworkMethod actualMethod) {
     	return (!this.safeParser.isSafe(actualMethod) && this.firstNonSafeExecuted );
     }
     

@@ -123,7 +123,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     	}
     	
     	//regra 2: nao é safe E nao é primeira execução de nao-safe
-    	if (isFistNotSafeExecution(actualMethod)) {
+    	if (fistNonSafeWasExecuted(actualMethod)) {
     		return true;
     	}
     	
@@ -139,7 +139,7 @@ public class SolidityUnitRunner extends BlockJUnit4ClassRunner {
     	return (this.safeParser.isSafe(actualMethod) && this.firstBeforeExecution );
     }
     
-    private boolean isFistNotSafeExecution(FrameworkMethod actualMethod) {
+    private boolean fistNonSafeWasExecuted(FrameworkMethod actualMethod) {
     	return (!this.safeParser.isSafe(actualMethod) && this.firstNonSafeExecuted );
     }
     
